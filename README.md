@@ -8,10 +8,6 @@ A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 
 See [`skills/daily-working/SKILL.md`](skills/daily-working/SKILL.md) for the full workflow this skill runs.
 
-## First run in a project
-
-The skill is generic by design — it doesn't hardcode any one project's ticket-key format, architecture, test command, or PR flow. The first time it runs in a project, it asks a short setup questionnaire (Redmine URL, ticket key prefix, commit format, conventions, test command, whether the dev DB is shared, PR method, dev server URL) and saves the answers to `.claude/daily-working.yml` in *that* project — not in this plugin repo. Every later run reads that file instead of asking again. It's safe to commit (conventions only, no credentials) so a team shares one setup.
-
 ## Install
 
 **As a plugin (recommended once published):**
@@ -36,6 +32,48 @@ cp skills/daily-working/SKILL.md ~/.claude/skills/daily-working/SKILL.md
 mkdir -p <target-project>/.claude/skills/daily-working
 cp skills/daily-working/SKILL.md <target-project>/.claude/skills/daily-working/SKILL.md
 ```
+
+## First run in a project
+
+The skill is generic by design — it doesn't hardcode any one project's ticket-key format, architecture, test command, or PR flow. The first time it runs in a project, it asks a short setup questionnaire (Redmine URL, ticket key prefix, commit format, conventions, test command, whether the dev DB is shared, PR method, dev server URL) and saves the answers to `.claude/daily-working.yml` in *that* project — not in this plugin repo. Every later run reads that file instead of asking again. It's safe to commit (conventions only, no credentials) so a team shares one setup.
+
+## Uninstall
+
+**If installed as a plugin:**
+
+```bash
+/plugin uninstall daily-working@daily-working-marketplace
+```
+
+This removes the plugin but keeps the marketplace registered (so you can reinstall later). To also drop the marketplace itself:
+
+```bash
+/plugin marketplace remove daily-working-marketplace
+```
+
+Removing the marketplace uninstalls any plugin installed from it, so you don't need to run both — `marketplace remove` alone is enough if you're done with it entirely.
+
+Prefer disabling over uninstalling if you just want it out of the way temporarily: `/plugin disable daily-working@daily-working-marketplace` (re-enable later with `/plugin enable ...`, no reinstall needed).
+
+**If installed as a personal skill** (`~/.claude/skills/`):
+
+```bash
+rm -rf ~/.claude/skills/daily-working
+```
+
+**If installed as a project skill** (`<project>/.claude/skills/`):
+
+```bash
+rm -rf <target-project>/.claude/skills/daily-working
+```
+
+**Either way, also remove the per-project config** it generated in Phase 0, if you no longer want it:
+
+```bash
+rm <target-project>/.claude/daily-working.yml   # or .json
+```
+
+That file is independent of how the skill itself was installed — deleting the skill doesn't remove it, and vice versa.
 
 ## Requirements
 
