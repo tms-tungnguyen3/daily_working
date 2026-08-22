@@ -8,8 +8,7 @@
     {
       "name": "daily-working",
       "source": "./",
-      "description": "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, then verify the result in a real browser via the claude-in-chrome extension.",
-      "version": "1.0.0"
+      "description": "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, then verify the result in a real browser via the claude-in-chrome extension."
     }
   ]
 }

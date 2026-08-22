@@ -8,6 +8,10 @@ A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 
 See [`skills/daily-working/SKILL.md`](skills/daily-working/SKILL.md) for the full workflow this skill runs.
 
+## First run in a project
+
+The skill is generic by design — it doesn't hardcode any one project's ticket-key format, architecture, test command, or PR flow. The first time it runs in a project, it asks a short setup questionnaire (Redmine URL, ticket key prefix, commit format, conventions, test command, whether the dev DB is shared, PR method, dev server URL) and saves the answers to `.claude/daily-working.yml` in *that* project — not in this plugin repo. Every later run reads that file instead of asking again. It's safe to commit (conventions only, no credentials) so a team shares one setup.
+
 ## Install
 
 **As a plugin (recommended once published):**
