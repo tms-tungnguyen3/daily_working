@@ -1,7 +1,7 @@
 ---
 name: daily-working
 description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, then verify the result in a real browser via the Claude Chrome extension (claude-in-chrome)."
-version: 1.1.0
+version: 1.2.0
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
