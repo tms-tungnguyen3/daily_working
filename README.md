@@ -2,10 +2,10 @@
 
 A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 
-1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots, mockups, logs) that often carry the actual requirement.
-2. **Implement** the change with the Claude CLI, following the target project's existing conventions — marking the ticket "in progress" first.
+1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots, mockups, logs) that often carry the actual requirement — and check the ticket isn't already claimed or closed.
+2. **Implement** the change with the Claude CLI, following the target project's existing conventions — on a dedicated branch, marking the ticket "in progress" first.
 3. **Verify** the change in a real running UI via the `claude-in-chrome` extension.
-4. **Close the loop**: post a summary (and status update, if configured) back to the Redmine ticket once the browser check is confirmed.
+4. **Close the loop**: open a PR with a proper summary/test/verification body, then move the ticket to "in review" on Redmine once the browser check is confirmed — final Resolved/Closed happens separately, after the PR actually merges.
 
 If the requirement is ambiguous, the skill asks in-chat first and, if that doesn't resolve it, escalates by posting the question as a Redmine comment and pausing — the reporter/PM watches the ticket, not this conversation.
 
@@ -38,7 +38,7 @@ cp skills/daily-working/SKILL.md <target-project>/.claude/skills/daily-working/S
 
 ## First run in a project
 
-The skill is generic by design — it doesn't hardcode any one project's ticket-key format, architecture, test command, or PR flow. The first time it runs in a repo, it asks a short setup questionnaire (Redmine URL, ticket key prefix, commit format, conventions, test command, whether the dev DB is shared, how to signal work has started on a ticket, PR method, dev server URL) and saves the answers to `.claude/daily-working.yml` at that **git repo's root** — not in this plugin repo. Every later run reads that file instead of asking again. It's safe to commit (conventions only, no credentials) so a team shares one setup.
+The skill is generic by design — it doesn't hardcode any one project's ticket-key format, architecture, test command, or PR flow. The first time it runs in a repo, it asks a short setup questionnaire (Redmine URL, ticket key prefix, your Redmine username, commit format, branch naming, conventions, test command, whether the dev DB is shared, how to signal work has started/is in review on a ticket, PR method, dev server URL) and saves the answers to `.claude/daily-working.yml` at that **git repo's root** — not in this plugin repo. Every later run reads that file instead of asking again. It's safe to commit (conventions only, no credentials) so a team shares one setup.
 
 If you work out of a parent folder that holds several independent repos (a monorepo-style layout where the parent itself isn't a git repo), each repo gets its own `.claude/daily-working.yml` rather than one shared at the parent — conventions and test commands are usually not interchangeable across repos even when they live under the same folder.
 
