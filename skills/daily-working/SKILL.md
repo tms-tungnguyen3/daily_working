@@ -94,8 +94,9 @@ If the user pastes an issue URL and has a Chrome session already authenticated a
 
 1. Load browser tools: `ToolSearch` with `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__get_page_text,mcp__claude-in-chrome__tabs_create_mcp`
 2. `tabs_context_mcp` first — if the issue is already open in an existing tab, reuse it; otherwise `navigate`/`tabs_create_mcp` to the pasted URL
-3. `get_page_text` (or `read_page` if the DOM structure matters) to pull subject, description, status, and comments straight off the rendered page
+3. `get_page_text` (or `read_page` if the DOM structure matters) to pull subject, description, status, and comments straight off the rendered page — Redmine renders the full comment/update history on one page by default, so a single call normally captures everything below the description too
 4. If the page shows a login form instead of the issue, the session isn't authenticated in that tab — tell the user rather than guessing at content
+5. (Rare) if the issue is unusually long and comments look truncated/paginated rather than fully rendered, that's a separate case not handled by the steps above — flag it rather than assuming you got the full history
 
 This reuses the exact same browser/session as Phase 3, so there's no separate credential setup.
 
@@ -125,9 +126,9 @@ curl -s -H "X-Redmine-API-Key: $REDMINE_API_KEY" \
 - `description` — the requirement text to implement
 - `tracker` / `status` / `priority` — context, not blocking
 - `custom_fields` — check for anything implementation-relevant (target module, environment)
-- `journals` / comments — recent ones may contain clarifications or scope changes; skim the latest
+- `journals` / comments — read the **full** history in order, not just the latest entry. Requirements often get refined or corrected after the initial description. When a later comment conflicts with the description or with an earlier comment, treat the most recent substantive clarification as the current, effective requirement — not the original description.
 
-If the description is ambiguous or contradicts what the codebase currently does, stop and ask — don't guess.
+If the description is ambiguous, the comment thread has unresolved back-and-forth that doesn't clearly settle on a final requirement, or any of it contradicts what the codebase currently does, stop and ask — don't guess which version is authoritative.
 
 ---
 
