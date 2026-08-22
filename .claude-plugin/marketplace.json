@@ -1,5 +1,6 @@
 {
   "name": "daily-working-marketplace",
+  "description": "Marketplace for the daily-working plugin: a Redmine-to-verified-change pipeline skill for Claude Code.",
   "owner": {
     "name": "Tung Nguyen",
     "email": "tungnguyen.120301@gmail.com"
