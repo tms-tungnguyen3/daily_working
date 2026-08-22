@@ -33,10 +33,10 @@ This skill is a coordinator — it does not replace the target project's own tes
 
 This skill is deliberately generic out of the box — Phase 0 is what makes it fit *this* project without editing the skill itself.
 
-Before Phase 1, check for a config file at `.claude/daily-working.yml` in the target project (`.claude/daily-working.json` also accepted).
+Before Phase 1, check for a config file at `.claude/daily-working.yml` at the root of the **git repository actually being changed** (`.claude/daily-working.json` also accepted) — not at the Claude Code session's top-level working directory if that's a different, larger folder (e.g. a monorepo-style parent that isn't itself a git repo and just contains several independent repos). Each repo gets its own file: conventions, test framework/command, and coverage bar are frequently *not* shareable across repos even when they're worked on from the same parent folder — don't assume one config covers all of them.
 
 - **Exists** → read it and use its values through Phases 1–4 instead of asking/guessing per field.
-- **Missing** → this is the first time the skill runs in this project. Ask the user a short setup questionnaire, then write the answers to `.claude/daily-working.yml` (create `.claude/` if needed):
+- **Missing** → this is the first time the skill runs in this repo. Ask the user a short setup questionnaire, then write the answers to `.claude/daily-working.yml` at that repo's root (create `.claude/` if needed):
   - Redmine base URL (or note that `REDMINE_URL`/`REDMINE_API_KEY` env vars will be used instead — never put credentials in this file)
   - Ticket key prefix used in commits, if any (e.g. `PROJ` for `PROJ-1234`), or "none — plain numeric IDs"
   - Commit message format/template and max subject length
