@@ -1,7 +1,7 @@
 ---
 name: daily-working
 description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the Redmine ticket in sync throughout (in-progress marker, ambiguity questions, close-out comment)."
-version: 1.5.0
+version: 1.6.0
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
@@ -39,7 +39,11 @@ This skill is deliberately generic out of the box — Phase 0 is what makes it f
 Before Phase 1, check for a config file at `.claude/daily-working.yml` at the root of the **git repository actually being changed** (`.claude/daily-working.json` also accepted) — not at the Claude Code session's top-level working directory if that's a different, larger folder (e.g. a monorepo-style parent that isn't itself a git repo and just contains several independent repos). Each repo gets its own file: conventions, test framework/command, and coverage bar are frequently *not* shareable across repos even when they're worked on from the same parent folder — don't assume one config covers all of them.
 
 - **Exists** → read it and use its values through Phases 1–4 instead of asking/guessing per field.
-- **Missing** → this is the first time the skill runs in this repo. Ask the user a short setup questionnaire, then write the answers to `.claude/daily-working.yml` at that repo's root (create `.claude/` if needed):
+- **Missing** → this is the first time the skill runs in this repo.
+
+  **First, check what the repo already documents about itself** — before asking the user anything, look for `CLAUDE.md`, `CONTRIBUTING.md`, `.claude/CLAUDE.md`, and the root `README.md` in the target repo, and skim any that exist for: architecture/authorization/i18n conventions, test framework and how to run it, coverage expectations, branch naming, commit message format, and DB safety notes. These are the project's own stated rules — prefer them over asking, and never contradict them. Pre-fill the questionnaire below with whatever they answer, and only ask the user for fields still unclear or unstated. When presenting the pre-filled answers back to the user for confirmation, say which file each one came from, so they can correct anything mis-read.
+
+  Then ask the user a short setup questionnaire for whatever's left, and write the combined answers to `.claude/daily-working.yml` at that repo's root (create `.claude/` if needed):
   - Redmine base URL (or note that `REDMINE_URL`/`REDMINE_API_KEY` env vars will be used instead — never put credentials in this file)
   - Ticket key prefix used in commits, if any (e.g. `PROJ` for `PROJ-1234`), or "none — plain numeric IDs"
   - Redmine login/username this pipeline runs as (`redmine.user`) — used to sanity-check who a ticket is assigned to before starting work on it
