@@ -1,7 +1,7 @@
 {
   "name": "daily-working",
   "displayName": "Daily Working",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, verify the result in a real browser via the claude-in-chrome extension, and keep the Redmine ticket in sync throughout.",
   "author": {
     "name": "Tung Nguyen",

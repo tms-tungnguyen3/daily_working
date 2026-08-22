@@ -1,7 +1,7 @@
 ---
 name: daily-working
 description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the Redmine ticket in sync throughout (in-progress marker, ambiguity questions, close-out comment)."
-version: 1.4.0
+version: 1.5.0
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
@@ -15,10 +15,10 @@ risk: safe
 
 Coordinate a full task-to-verified-change loop without the human relaying context by hand:
 
-1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots/mockups/logs) that carry requirements the text alone doesn't.
-2. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly) — marking the ticket "in progress" first so the team can see work has started.
+1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots/mockups/logs) that carry requirements the text alone doesn't — and check it's actually safe to start (not already assigned to someone else, not already closed).
+2. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly) — on a dedicated branch, marking the ticket "in progress" first so the team can see work has started.
 3. **Verify** the change in a real running UI using the `claude-in-chrome` extension, driving the actual browser instead of trusting code review alone.
-4. **Close the loop**: post a summary comment (and status transition, if configured) back to the Redmine ticket once the browser check is confirmed — the ticket, not just this chat, ends up reflecting that the work happened.
+4. **Close the loop**: open a PR with a real summary/test/verification body, then post a comment and move the ticket to "in review" (not Resolved/Closed — that's a separate step after the PR actually merges) back on Redmine once the browser check is confirmed — the ticket, not just this chat, ends up reflecting that the work happened.
 
 If the requirement turns out ambiguous at any point, that gets escalated to a Redmine comment (not just asked in this chat) and the pipeline pauses — see Phase 1.
 
@@ -42,7 +42,10 @@ Before Phase 1, check for a config file at `.claude/daily-working.yml` at the ro
 - **Missing** → this is the first time the skill runs in this repo. Ask the user a short setup questionnaire, then write the answers to `.claude/daily-working.yml` at that repo's root (create `.claude/` if needed):
   - Redmine base URL (or note that `REDMINE_URL`/`REDMINE_API_KEY` env vars will be used instead — never put credentials in this file)
   - Ticket key prefix used in commits, if any (e.g. `PROJ` for `PROJ-1234`), or "none — plain numeric IDs"
+  - Redmine login/username this pipeline runs as (`redmine.user`) — used to sanity-check who a ticket is assigned to before starting work on it
   - How Phase 2 should signal work has started: transition to a specific "in progress" status (ask for that status's ID), post a plain comment instead, or skip this entirely (some teams manage board state manually)
+  - The status ID meaning "in review" (`redmine.review_status_id`), set once implementation is browser-verified and a PR is open — distinct from Resolved/Closed, which only happens after the PR merges
+  - Branch naming convention (`git.branch_format`), or accept the default `{ticket_key}-{slug}`
   - Commit message format/template and max subject length
   - Architecture, authorization, and i18n conventions to follow (a few keywords is enough, e.g. "Rails HMVC, Pundit, Rails I18n")
   - Test framework, the exact command to run it (e.g. `RAILS_ENV=test bundle exec rspec`), and the coverage bar expected
@@ -58,8 +61,13 @@ Before Phase 1, check for a config file at `.claude/daily-working.yml` at the ro
 redmine:
   url:                     # or omit if using REDMINE_URL / REDMINE_API_KEY env vars
   ticket_key_prefix:       # e.g. "PROJ", or omit if tickets are plain numeric IDs
+  user:                     # Redmine login/username this pipeline runs as — used to sanity-check ticket assignment before starting (Phase 1)
   in_progress_status_id:   # status_id to set when work starts (Phase 2), or omit to just comment instead
   in_progress_mode:        # "status" | "comment" | "skip" — how Phase 2 signals work has started
+  review_status_id:        # status_id to set once implementation is browser-verified and a PR is open (e.g. "Review"/"Feedback") — NOT Resolved/Closed; final close happens separately, after the PR is actually merged
+
+git:
+  branch_format: "{ticket_key}-{slug}"   # branch name pattern; {ticket_key} = numeric id or prefixed key, {slug} = short kebab-case slug from the subject
 
 commit:
   format: "[{ticket_key}]: {subject}"
@@ -79,6 +87,7 @@ database_safety:
 
 pr:
   method:                   # e.g. "@pr-description", "gh pr create"
+  include_redmine_link: true   # whether the PR body should link back to the ticket
 
 dev_server:
   default_url:
@@ -131,8 +140,18 @@ curl -s -H "X-Redmine-API-Key: $REDMINE_API_KEY" \
 - `subject` — becomes the basis of the commit message subject (formatted per `commit.format` in the config file)
 - `description` — the requirement text to implement
 - `tracker` / `status` / `priority` — context, not blocking
+- `assigned_to` — who the ticket is currently assigned to; see the check right below
 - `custom_fields` — check for anything implementation-relevant (target module, environment)
 - `journals` / comments — read the **full** history in order, not just the latest entry. Requirements often get refined or corrected after the initial description. When a later comment conflicts with the description or with an earlier comment, treat the most recent substantive clarification as the current, effective requirement — not the original description.
+
+### Check assignee & status before starting work
+
+Compare the fetched `assigned_to` and `status` against `redmine.user` in the config file before doing anything else — starting work on a ticket already claimed by someone else, or one that's already Resolved/Closed, is easy to do by accident and wastes both people's work.
+
+- **Assigned to someone else** (not `redmine.user`, not unassigned) → stop and ask the user whether to proceed anyway (e.g. picking it up on the assignee's behalf) before touching anything.
+- **Unassigned** → this is normally fine to proceed on, but flag it — some teams expect self-assignment first; a comment/status set to `in_progress_status_id` in Phase 2 often self-assigns as a side effect on typical Redmine workflows, which is fine.
+- **Status is already Resolved/Closed/Rejected** → stop and ask; re-opening or re-implementing a ticket someone already closed is almost never the right silent default.
+- `redmine.user` unset in the config → skip this check (nothing to compare against) but still flag if the ticket looks already-assigned/already-closed, same as above.
 
 If the description is ambiguous, the comment thread has unresolved back-and-forth that doesn't clearly settle on a final requirement, or any of it contradicts what the codebase currently does, stop — don't guess which version is authoritative. Resolve it in two steps:
 
@@ -156,6 +175,16 @@ Bug tickets and UI-change requests frequently carry the actual requirement in an
 ---
 
 ## Phase 2: Implement via Claude CLI
+
+### Create a branch (before writing any code)
+
+Never commit directly to the repo's default branch (`main`/`master`/whatever `git symbolic-ref` reports) — always work on a dedicated branch, even for a small fix. Name it from `git.branch_format` in the config file (default `{ticket_key}-{slug}`, e.g. `4626-fix-login-redirect`), where `{slug}` is a short kebab-case slug derived from the ticket `subject`. Create and check it out before touching any files:
+
+```bash
+git checkout -b <branch-name>
+```
+
+If already on a non-default branch when this phase starts (e.g. the user already switched), it's fine to keep using it — just confirm it isn't the default branch before committing.
 
 ### Mark the ticket "In Progress" (once, before writing code)
 
@@ -214,24 +243,45 @@ Browser check: {what was exercised, what was observed}
 Commit: {commit message used}
 ```
 
-Next steps: open the PR once the user confirms the browser check looked right, using `pr.method` from the config file (a companion skill/command, or plain `gh pr create` if unset).
+### Open the PR
+
+Once the user confirms the browser check looked right, open the PR using `pr.method` from the config file (a companion skill/command, or plain `gh pr create` if unset). Build title and body from what's already known instead of leaving it generic:
+
+- **Title**: `{commit subject}` (or `[{ticket_key}] {subject}` if `commit.format` uses a ticket key) — searchable and consistent with the commit.
+- **Body**, when `pr.include_redmine_link` isn't explicitly `false`:
+  ```markdown
+  ## Redmine
+  <redmine.url>/issues/<id> — <subject>
+
+  ## Summary
+  {what changed and why, 1-3 bullets}
+
+  ## Tests
+  {pass/fail, coverage — from the Phase 4 summary above}
+
+  ## Browser verification
+  {what was exercised in Phase 3, what was observed}
+  ```
+  A reviewer should be able to judge the change from the PR body alone, without having to go open the Redmine ticket first — the link is for traceability, not because the body should be thin.
 
 ### Close the loop on Redmine
 
 Don't stop at reporting to the user in this conversation — the ticket itself should reflect that the work happened, otherwise the next person to look at Redmine has no idea. **Ask the user for confirmation before writing to Redmine** (a comment/status change is outward-facing, same as opening a PR) — do this after they've confirmed the browser check, not before.
 
-Once confirmed, post a comment summarizing what was done (commit reference, what was verified in the browser, PR link if already opened) and, only if the config or the user says so, transition the ticket's status:
+Once confirmed and the PR is open, post a comment summarizing what was done (commit reference, what was verified in the browser, the PR link) and, only if the config or the user says so, transition the ticket's status to **`redmine.review_status_id`** ("Review"/"Feedback" or whatever this instance calls it) — **not** Resolved/Closed. The code hasn't been reviewed or merged yet at this point; marking it fully done here would be premature and someone could act on that before the PR is actually in.
 
-- **Option A (browser session):** use `claude-in-chrome` to open the issue's update form, fill the comment field with the summary, set status if applicable, and submit.
+- **Option A (browser session):** use `claude-in-chrome` to open the issue's update form, fill the comment field with the summary + PR link, set status to `review_status_id` if applicable, and submit.
 - **Option B (API key):**
   ```bash
   curl -s -X PUT -H "X-Redmine-API-Key: $REDMINE_API_KEY" -H "Content-Type: application/json" \
     "$REDMINE_URL/issues/<id>.json" \
-    -d '{"issue": {"notes": "<summary>", "status_id": <id-if-transitioning>}}'
+    -d '{"issue": {"notes": "<summary + PR link>", "status_id": <review_status_id-if-set>}}'
   ```
-  Status IDs are Redmine-instance-specific — look them up (`/statuses.json`) rather than guessing, or omit `status_id` and only post the note if unsure.
+  Status IDs are Redmine-instance-specific — use `redmine.review_status_id` from the config, or look them up (`/statuses.json`) if unset rather than guessing.
 
-If the user doesn't want the ticket touched automatically (some teams close tickets manually after their own review), skip this and just leave the summary in chat — note that in `.claude/daily-working.yml` under a new freeform note in `conventions.notes` so future runs don't ask again.
+If the user doesn't want the ticket touched automatically (some teams manage this manually after their own review), skip this and just leave the summary in chat — note that in `.claude/daily-working.yml` under a new freeform note in `conventions.notes` so future runs don't ask again.
+
+**Final close (Resolved/Closed) is a separate, later step, outside this run** — it belongs after the PR is actually merged, not after local verification. If the user reports back later that the PR merged, that's a fresh, small ask ("mark #4626 resolved, the PR merged") rather than something this pipeline does automatically here.
 
 ---
 
