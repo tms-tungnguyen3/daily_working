@@ -1,6 +1,6 @@
 ---
 name: daily-working
-description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, then verify the result in a real browser via the Claude Chrome extension (claude-in-chrome)."
+description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the Redmine ticket in sync throughout (in-progress marker, ambiguity questions, close-out comment)."
 version: 1.4.0
 created: 2026-08-21
 platforms: [claude-code]
@@ -15,11 +15,14 @@ risk: safe
 
 Coordinate a full task-to-verified-change loop without the human relaying context by hand:
 
-1. **Fetch** the task/ticket from Redmine by ID.
-2. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly).
+1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots/mockups/logs) that carry requirements the text alone doesn't.
+2. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly) — marking the ticket "in progress" first so the team can see work has started.
 3. **Verify** the change in a real running UI using the `claude-in-chrome` extension, driving the actual browser instead of trusting code review alone.
+4. **Close the loop**: post a summary comment (and status transition, if configured) back to the Redmine ticket once the browser check is confirmed — the ticket, not just this chat, ends up reflecting that the work happened.
 
-This skill is a coordinator — it does not replace the target project's own test conventions. It sequences Redmine → implementation → live browser check.
+If the requirement turns out ambiguous at any point, that gets escalated to a Redmine comment (not just asked in this chat) and the pipeline pauses — see Phase 1.
+
+This skill is a coordinator — it does not replace the target project's own test conventions. It sequences Redmine → implementation → live browser check → Redmine update.
 
 ## When to Use
 
