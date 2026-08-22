@@ -1,5 +1,11 @@
 # daily-working
 
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
+![Platform](https://img.shields.io/badge/platform-Claude%20Code-5A67D8)
+![License](https://img.shields.io/github/license/tms-tungnguyen3/daily_working)
+![Stars](https://img.shields.io/github/stars/tms-tungnguyen3/daily_working?style=social)
+![Forks](https://img.shields.io/github/forks/tms-tungnguyen3/daily_working?style=social)
+
 A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 
 1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots, mockups, logs) that often carry the actual requirement — and check the ticket isn't already claimed or closed.
@@ -10,6 +16,51 @@ A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 If the requirement is ambiguous, the skill asks in-chat first and, if that doesn't resolve it, escalates by posting the question as a Redmine comment and pausing — the reporter/PM watches the ticket, not this conversation.
 
 See [`skills/daily-working/SKILL.md`](skills/daily-working/SKILL.md) for the full workflow this skill runs.
+
+## Architecture
+
+End-to-end pipeline across four phases, plus a one-time setup phase that adapts the skill to whatever repo it's running in:
+
+```mermaid
+flowchart TD
+    P0["Phase 0 — Project Setup (first run only)<br/>Read target repo's CLAUDE.md / CONTRIBUTING / README<br/>Ask short questionnaire for what's still unclear<br/>Save .claude/daily-working.yml"] --> P1
+
+    P1["Phase 1 — Fetch Task<br/>Pull ticket + attachments from Redmine<br/>(browser session or API key)<br/>Check it isn't already claimed/closed"] --> AMBIG{Requirement clear?}
+
+    AMBIG -- "No" --> ESC["Ask in-chat, then escalate<br/>as a Redmine comment and pause"]
+    ESC -.-> P1
+    AMBIG -- "Yes" --> P2
+
+    P2["Phase 2 — Implement<br/>Branch + code changes via Claude CLI,<br/>following the project's own conventions<br/>Mark ticket 'In Progress'"] --> P3
+
+    P3["Phase 3 — Verify<br/>Drive the real running UI<br/>via the claude-in-chrome extension"] --> P4
+
+    P4["Phase 4 — Close the Loop<br/>Open PR with summary/test/verification<br/>Move ticket to 'In Review'<br/>(Resolved/Closed happens later, after merge)"]
+```
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/tms-tungnguyen3/daily_working.git
+cd daily_working
+
+# 2. Install (as a Claude Code plugin)
+/plugin marketplace add tms-tungnguyen3/daily_working
+/plugin install daily-working@daily-working-marketplace
+
+# 3. Run — from any target project, just hand Claude Code a ticket ID
+"Pull Redmine ticket #4626 and implement it"
+```
+
+First time in a given repo, the skill runs a short Phase 0 setup (see below) before doing any work. Every run after that reuses the saved config.
+
+## Use Cases
+
+- **You get work as Redmine tickets and want the whole cycle automated** — fetch, implement, verify, open PR, and update ticket status — instead of manually copy-pasting the ticket description into chat and flipping Redmine status by hand.
+- **You don't trust "tests pass" as proof a change actually works** — Phase 3 drives the real running app in a browser via `claude-in-chrome` before a PR ever opens.
+- **Requirements are sometimes ambiguous and the reporter/PM isn't in this chat** — the skill escalates the question onto the ticket itself (a Redmine comment) instead of guessing or stalling silently.
+- **You work across several repos with different conventions** — Phase 0 reads each target repo's own `CLAUDE.md`/`CONTRIBUTING.md`/`README.md` first, then asks only for what's still unclear, and saves it per-repo so it's never re-asked.
 
 ## Install
 
