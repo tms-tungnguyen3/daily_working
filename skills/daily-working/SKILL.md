@@ -1,7 +1,7 @@
 ---
 name: daily-working
-description: "End-to-end pipeline: pull a task from Redmine by ID, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the Redmine ticket in sync throughout (in-progress marker, ambiguity questions, close-out comment)."
-version: 1.6.0
+description: "End-to-end pipeline: pull a task from Redmine by ID, sanity-check and impact-assess it against the codebase before touching anything, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the Redmine ticket in sync throughout (in-progress marker, ambiguity/impact questions, close-out comment)."
+version: 1.7.0
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
@@ -16,11 +16,12 @@ risk: safe
 Coordinate a full task-to-verified-change loop without the human relaying context by hand:
 
 1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots/mockups/logs) that carry requirements the text alone doesn't — and check it's actually safe to start (not already assigned to someone else, not already closed).
-2. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly) — on a dedicated branch, marking the ticket "in progress" first so the team can see work has started.
-3. **Verify** the change in a real running UI using the `claude-in-chrome` extension, driving the actual browser instead of trusting code review alone.
-4. **Close the loop**: open a PR with a real summary/test/verification body, then post a comment and move the ticket to "in review" (not Resolved/Closed — that's a separate step after the PR actually merges) back on Redmine once the browser check is confirmed — the ticket, not just this chat, ends up reflecting that the work happened.
+2. **Assess** whether the task, as understood, still makes sense against the codebase and how much blast radius implementing it actually carries — before writing any code, not after.
+3. **Implement** the change with the Claude CLI (this agent, following the target project's existing conventions and test suite directly) — on a dedicated branch, marking the ticket "in progress" first so the team can see work has started.
+4. **Verify** the change in a real running UI using the `claude-in-chrome` extension, driving the actual browser instead of trusting code review alone.
+5. **Close the loop**: open a PR with a real summary/test/verification body, then post a comment and move the ticket to "in review" (not Resolved/Closed — that's a separate step after the PR actually merges) back on Redmine once the browser check is confirmed — the ticket, not just this chat, ends up reflecting that the work happened.
 
-If the requirement turns out ambiguous at any point, that gets escalated to a Redmine comment (not just asked in this chat) and the pipeline pauses — see Phase 1.
+If the requirement turns out ambiguous, unreasonable, or too high-impact to proceed on quietly at any point, that gets escalated to a Redmine comment (not just asked in this chat) and the pipeline pauses — see Phase 1 and Phase 1.5.
 
 This skill is a coordinator — it does not replace the target project's own test conventions. It sequences Redmine → implementation → live browser check → Redmine update.
 
@@ -178,6 +179,41 @@ Bug tickets and UI-change requests frequently carry the actual requirement in an
 
 ---
 
+## Phase 1.5: Assess Impact & Sanity-Check (before touching any code)
+
+Phase 1 settles *what* the requirement says. This phase judges *whether it should be implemented as understood, and how carefully* — before branching, before writing a line of code. Skipping straight from "requirement is clear" to "let's build it" is exactly the gap this phase closes: a clear requirement can still be a bad or oversized idea to execute unattended.
+
+Do this once, after Phase 1's requirement is settled (no open ambiguity) and before Phase 2's branch/in-progress step.
+
+**1. Sanity-check against the actual codebase**
+
+A requirement can be perfectly unambiguous and still not make sense to implement as literally stated:
+
+- The behavior described already exists, or was already fixed by a more recent, unrelated change — implementing it again would be redundant or would reintroduce something.
+- The described approach contradicts this project's current architecture/conventions in a way that can't be reconciled without a design decision bigger than the ticket implies (e.g. the ticket assumes a data model or flow the code doesn't actually have).
+- The acceptance criteria, read literally, can't actually be satisfied by a change scoped to what the ticket describes (it would require touching systems the ticket doesn't mention at all).
+
+This is different from Phase 1 ambiguity: the text isn't unclear, it's just no longer (or never was) a good match for what the codebase actually does. Use judgment based on what's actually in the repo — read the relevant code before concluding this, don't assume from the ticket text alone.
+
+**2. Assess impact / blast radius**
+
+Before deciding this is safe to just go implement, judge — using context and judgment, not a fixed checklist — things like:
+
+- Does it touch authentication/authorization, payments/billing, database migrations or schema, bulk/irreversible data changes, or shared production configuration?
+- Does it touch a small, isolated area (one module, one file, easily reverted with `git revert`), or does it reach into core/shared code other features depend on?
+- Does it change behavior for users other than the person who filed the ticket, or for the system as a whole (e.g. a default, a shared setting, an externally-visible API)?
+- Is the size of the actual change proportionate to what the ticket asked for, or does implementing it "properly" balloon well past what was requested?
+
+**3. Decide**
+
+- **Low impact, sanity-checks out** → proceed straight to Phase 2, no need to ask — most routine fixes/small features land here.
+- **High impact (any of the risk signals above) or fails the sanity check** → stop, don't branch or write code yet. Resolve it the same way Phase 1 resolves ambiguity:
+  1. Ask the user in this conversation first, stating plainly what's risky or what doesn't add up (e.g. "This ticket asks to change the default payment currency — that's a shared setting affecting every user, not just this account. Confirm you want that, or is the intent narrower?" / "The bug this describes looks already fixed by commit X — should I still proceed, or should the ticket be closed instead?").
+  2. If the user isn't sure either, post the concern as a comment on the Redmine ticket itself (same Option A/B mechanism as the Phase 4 close-out) and stop the pipeline — don't guess and proceed on a high-impact or seemingly-unreasonable task just because the ticket text was clear.
+- Note in the Phase 4 summary either way — even a low-impact task gets a one-line note on why it was judged safe to proceed, so the human reviewing later sees the assessment happened, not just its silence.
+
+---
+
 ## Phase 2: Implement via Claude CLI
 
 ### Create a branch (before writing any code)
@@ -241,6 +277,7 @@ Summary to report back:
 
 ```
 Redmine task: <id> — <subject>
+Impact assessment: {low/high, one-line reason — from Phase 1.5}
 Implemented: {files changed}
 Tests: {pass/fail, coverage}
 Browser check: {what was exercised, what was observed}
@@ -293,4 +330,5 @@ If the user doesn't want the ticket touched automatically (some teams manage thi
 
 - **Don't skip the browser step** — passing specs are necessary but not sufficient; this skill exists specifically to close that gap
 - **Ask, don't guess** — missing Redmine credentials, ambiguous ticket ID mapping, or unclear requirement text are all reasons to stop and ask
-- **Coordinator, not a new convention set** — implementation still follows this project's existing conventions and test suite; this skill only adds the fetch and verify bookends, and Phase 0's config file is what lets it do that without per-run guessing
+- **A clear ticket isn't automatically a good idea to execute unattended** — Phase 1.5 exists because "the requirement is unambiguous" and "this is safe/sensible to just go implement" are different questions; judge blast radius and fit against the actual codebase before writing code, not just clarity of the text
+- **Coordinator, not a new convention set** — implementation still follows this project's existing conventions and test suite; this skill only adds the fetch, assess, and verify bookends, and Phase 0's config file is what lets it do that without per-run guessing
