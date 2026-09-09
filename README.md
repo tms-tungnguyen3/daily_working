@@ -1,6 +1,6 @@
 # daily-working
 
-![Version](https://img.shields.io/badge/version-1.6.0-blue)
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Claude%20Code-5A67D8)
 ![License](https://img.shields.io/github/license/tms-tungnguyen3/daily_working)
 ![Stars](https://img.shields.io/github/stars/tms-tungnguyen3/daily_working?style=social)
@@ -8,14 +8,36 @@
 
 A Claude Code plugin/skill that coordinates a full task-to-verified-change loop:
 
-1. **Fetch** the task/ticket from Redmine by ID, including attachments (screenshots, mockups, logs) that often carry the actual requirement — and check the ticket isn't already claimed or closed.
+1. **Fetch** the task/ticket from the project's task tracker by ID, including attachments (screenshots, mockups, logs) that often carry the actual requirement — and check the ticket isn't already claimed or closed.
 2. **Implement** the change with the Claude CLI, following the target project's existing conventions — on a dedicated branch, marking the ticket "in progress" first.
 3. **Verify** the change in a real running UI via the `claude-in-chrome` extension.
-4. **Close the loop**: open a PR with a proper summary/test/verification body, then move the ticket to "in review" on Redmine once the browser check is confirmed — final Resolved/Closed happens separately, after the PR actually merges.
+4. **Close the loop**: open a PR with a proper summary/test/verification body, then move the ticket to "in review" on the tracker once the browser check is confirmed — final Resolved/Closed happens separately, after the PR actually merges.
 
-If the requirement is ambiguous, the skill asks in-chat first and, if that doesn't resolve it, escalates by posting the question as a Redmine comment and pausing — the reporter/PM watches the ticket, not this conversation.
+If the requirement is ambiguous, the skill asks in-chat first and, if that doesn't resolve it, escalates by posting the question as a comment on the ticket and pausing — the reporter/PM watches the ticket, not this conversation.
 
-See [`skills/daily-working/SKILL.md`](skills/daily-working/SKILL.md) for the full workflow this skill runs.
+**Task tracker support today: Redmine and GitHub Issues**, picked per-project via `task_tracker` in `.claude/daily-working.yml`. The pipeline steps above never hardcode either one — they only call a small fetch/comment/status contract (see [Structure](#structure) below); each tracker's real mechanics live in its own `adapters/<name>.md` file, so adding a third tracker is a new adapter file, not a change to the pipeline.
+
+See [`skills/daily-working/SKILL.md`](skills/daily-working/SKILL.md) for the full workflow this skill runs. See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Structure
+
+As of v2.0.0, the skill is split into small, single-purpose files instead of one monolithic `SKILL.md` — `SKILL.md` is a router; each phase, cross-cutting policy, adapter, and template lives in its own file and gets read on demand:
+
+```
+skills/daily-working/
+├── SKILL.md              # purpose, routing, structure
+├── workflows/             # entry points: implement / review / resume
+├── phases/                # setup, fetch-task, assess, implement, test, verify, close — tracker-agnostic
+├── policies/              # safety, git, database, browser, tracker-adapter (the fetch/write contract)
+├── adapters/              # one file per tracker: redmine.md (browser), github.md (gh CLI)
+└── templates/             # pr, tracker-write, summary
+```
+
+Three workflows cover the situations this skill handles — pick per what already exists:
+
+- **`implement`** — fresh ticket, nothing implemented yet (the original end-to-end pipeline below)
+- **`review`** — code already exists; verify it against the ticket instead of re-implementing
+- **`resume`** — a prior run paused on an ambiguity/impact question that's now answered
 
 ## Architecture
 
@@ -25,9 +47,9 @@ End-to-end pipeline across four phases, plus a one-time setup phase that adapts 
 flowchart TD
     P0["Phase 0 — Project Setup (first run only)<br/>Read target repo's CLAUDE.md / CONTRIBUTING / README<br/>Ask short questionnaire for what's still unclear<br/>Save .claude/daily-working.yml"] --> P1
 
-    P1["Phase 1 — Fetch Task<br/>Pull ticket + attachments from Redmine<br/>(browser session or API key)<br/>Check it isn't already claimed/closed"] --> AMBIG{Requirement clear?}
+    P1["Phase 1 — Fetch Task<br/>adapters/&lt;task_tracker&gt;.fetch(id)<br/>Redmine: browser session · GitHub: gh CLI<br/>Check it isn't already claimed/closed"] --> AMBIG{Requirement clear?}
 
-    AMBIG -- "No" --> ESC["Ask in-chat, then escalate<br/>as a Redmine comment and pause"]
+    AMBIG -- "No" --> ESC["Ask in-chat, then escalate<br/>as a comment on the tracker and pause"]
     ESC -.-> P1
     AMBIG -- "Yes" --> P2
 
@@ -35,7 +57,7 @@ flowchart TD
 
     P3["Phase 3 — Verify<br/>Drive the real running UI<br/>via the claude-in-chrome extension"] --> P4
 
-    P4["Phase 4 — Close the Loop<br/>Open PR with summary/test/verification<br/>Move ticket to 'In Review'<br/>(Resolved/Closed happens later, after merge)"]
+    P4["Phase 4 — Close the Loop<br/>Open PR with summary/test/verification<br/>Move ticket to 'In Review' on the tracker<br/>(Resolved/Closed happens later, after merge)"]
 ```
 
 ## Quick Start
@@ -57,10 +79,11 @@ First time in a given repo, the skill runs a short Phase 0 setup (see below) bef
 
 ## Use Cases
 
-- **You get work as Redmine tickets and want the whole cycle automated** — fetch, implement, verify, open PR, and update ticket status — instead of manually copy-pasting the ticket description into chat and flipping Redmine status by hand.
+- **You get work as tracker tickets (Redmine or GitHub Issues) and want the whole cycle automated** — fetch, implement, verify, open PR, and update ticket status — instead of manually copy-pasting the ticket description into chat and flipping tracker status by hand.
 - **You don't trust "tests pass" as proof a change actually works** — Phase 3 drives the real running app in a browser via `claude-in-chrome` before a PR ever opens.
-- **Requirements are sometimes ambiguous and the reporter/PM isn't in this chat** — the skill escalates the question onto the ticket itself (a Redmine comment) instead of guessing or stalling silently.
-- **You work across several repos with different conventions** — Phase 0 reads each target repo's own `CLAUDE.md`/`CONTRIBUTING.md`/`README.md` first, then asks only for what's still unclear, and saves it per-repo so it's never re-asked.
+- **Requirements are sometimes ambiguous and the reporter/PM isn't in this chat** — the skill escalates the question onto the ticket itself (a comment on the tracker) instead of guessing or stalling silently.
+- **You work across several repos with different conventions, or different trackers** — Phase 0 reads each target repo's own `CLAUDE.md`/`CONTRIBUTING.md`/`README.md` first, then asks only for what's still unclear, and saves it per-repo so it's never re-asked; one repo can use Redmine and another GitHub Issues without touching the skill itself.
+- **Your tracker isn't Redmine or GitHub Issues** — write one `adapters/<name>.md` implementing `fetch`/`write_comment`/`set_status` (see [`policies/tracker-adapter.md`](skills/daily-working/policies/tracker-adapter.md)); no other file needs to change.
 
 ## Install
 
@@ -76,16 +99,18 @@ First time in a given repo, the skill runs a short Phase 0 setup (see below) bef
 **As a personal skill** (available in every project, no plugin needed):
 
 ```bash
-mkdir -p ~/.claude/skills/daily-working
-cp skills/daily-working/SKILL.md ~/.claude/skills/daily-working/SKILL.md
+mkdir -p ~/.claude/skills
+cp -R skills/daily-working ~/.claude/skills/daily-working
 ```
 
 **As a project skill** (checked into one specific repo, shared with anyone using it):
 
 ```bash
-mkdir -p <target-project>/.claude/skills/daily-working
-cp skills/daily-working/SKILL.md <target-project>/.claude/skills/daily-working/SKILL.md
+mkdir -p <target-project>/.claude/skills
+cp -R skills/daily-working <target-project>/.claude/skills/daily-working
 ```
+
+Copy the whole `skills/daily-working/` directory, not just `SKILL.md` — since v2.0.0 it links out to files under `workflows/`, `phases/`, `policies/`, and `templates/` that need to come along with it.
 
 ## First run in a project
 
@@ -133,8 +158,8 @@ That file is independent of how the skill itself was installed — deleting the 
 
 ## Requirements
 
-- The [`claude-in-chrome`](https://code.claude.com/docs/en/claude-in-chrome) browser extension, for Phase 1 (optional) and Phase 3 (verification).
-- A Redmine instance with either an authenticated browser session or an API key (`REDMINE_URL` / `REDMINE_API_KEY`).
+- The [`claude-in-chrome`](https://code.claude.com/docs/en/claude-in-chrome) browser extension — required for Phase 3 (verification) no matter which tracker is configured, and for Phase 1/Phase 4 too on a Redmine project (`task_tracker: redmine`), since [adapters/redmine](skills/daily-working/adapters/redmine.md) does everything through an already-logged-in Chrome session. No Redmine API key is used anywhere.
+- On a GitHub Issues project (`task_tracker: github`), the [`gh` CLI](https://cli.github.com/) already authenticated (`gh auth status`) instead — [adapters/github](skills/daily-working/adapters/github.md) uses it for fetch/comment/labels, and it's the same auth `gh pr create` needs anyway.
 - Project-specific conventions (test framework, DB safety rules, commit format) are assumed to already exist in the target codebase — this skill coordinates around them, it doesn't define them.
 
 ## License
