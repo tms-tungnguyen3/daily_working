@@ -2,6 +2,12 @@
 
 All notable changes to the `daily-working` skill/plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions match `skills/daily-working/SKILL.md`'s frontmatter and `.claude-plugin/plugin.json`.
 
+## [2.0.1] — 2026-09-10
+
+### Added
+
+- **`policies/git.md`, `templates/pr.md`** — explicit "no AI attribution" rule: skill-driven commits and PRs must not carry a `Co-Authored-By: Claude` trailer, `Claude-Session:` line, or "Generated with Claude Code" footer. Previously unstated, so a skill-driven commit/PR could pick one up depending on caller defaults.
+
 ## [2.0.0] — 2026-09-09
 
 ### Changed — breaking (structure)
