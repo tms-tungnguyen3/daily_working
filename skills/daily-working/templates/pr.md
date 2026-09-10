@@ -23,3 +23,5 @@ Build title and body from what's already known instead of leaving it generic —
 ```
 
 The ticket link itself is adapter-specific — `<redmine.url>/issues/<id>` for [adapters/redmine](../adapters/redmine.md), the issue's `url` field (already returned by `fetch()`) for [adapters/github](../adapters/github.md). Use whatever the active adapter's `fetch()` gave back rather than reconstructing it.
+
+No AI attribution: the body ends after Browser verification — no `Co-Authored-By: Claude` trailer, no `🤖 Generated with Claude Code` footer, no session link, in either the title or the body. Same rule as [policies/git](../policies/git.md) for the commit.

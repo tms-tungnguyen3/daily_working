@@ -19,3 +19,7 @@ git checkout -b <branch-name>
 ## Commit message format
 
 Build the commit message from `commit.format` in the config file (default `[{ticket_key}]: {subject}`), using the tracker's `subject` field, staying within `commit.max_subject_length` chars (default 50).
+
+## No AI attribution
+
+Do not append any AI attribution footer to the commit — no `Co-Authored-By: Claude ...` trailer, no `Claude-Session:` line, no `🤖 Generated with Claude Code` note. The message is exactly what `commit.format` produces, nothing added after it.

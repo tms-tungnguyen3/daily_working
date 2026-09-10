@@ -1,7 +1,7 @@
 ---
 name: daily-working
 description: "End-to-end pipeline: pull a task from the project's task tracker by ID (Redmine or GitHub Issues today, more addable via a new adapter), sanity-check and impact-assess it against the codebase before touching anything, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the tracker ticket in sync throughout (in-progress marker, ambiguity/impact questions, close-out comment)."
-version: 2.0.0
+version: 2.0.1
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
