@@ -10,7 +10,7 @@ See [policies/git](../policies/git.md) for the full rule and naming format:
 git checkout -b <branch-name>
 ```
 
-If another task from this skill is already in flight and uncommitted, don't check out a second branch in this same directory — see [policies/parallel](../policies/parallel.md) and give this task its own git worktree instead.
+If another task from this skill is already in flight and uncommitted, don't check out a second branch in this same directory — see [policies/parallel](../policies/parallel.md) and give this task its own git worktree instead. Also check [policies/parallel](../policies/parallel.md) before branching if this ticket was already worked on before (an open PR to keep pushing to, or a merged round now getting a change request) — reuse or clean up per that policy rather than assuming a fresh branch is always right.
 
 ## Mark the ticket "In Progress" (once, before writing code)
 
