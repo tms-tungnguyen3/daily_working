@@ -2,6 +2,14 @@
 
 All notable changes to the `daily-working` skill/plugin are documented here. Format loosely follows [Keep a Changelog](https://keepachangelog.com/); versions match `skills/daily-working/SKILL.md`'s frontmatter and `.claude-plugin/plugin.json`.
 
+## [2.1.0] — 2026-09-18
+
+### Added
+
+- **`policies/parallel.md`** — running multiple tasks at once without them interfering: isolate each concurrent task in its own `git worktree` under a dedicated `.worktrees/` directory (namespaced `<repo-name>-<ticket-key>`, path configurable via the new `parallel.worktree_dir` config key), drive each from its own Claude Code session, and don't reuse a `claude-in-chrome` tab across tasks that belong to different sessions. Cross-linked from `policies/git.md`, `phases/implement.md`, and `policies/browser.md`.
+- **Same-ticket re-run handling**, also in `policies/parallel.md`: reuse an existing worktree when returning to a ticket whose PR is still open, instead of creating a duplicate; and for a ticket that already merged and then gets a new change request, safely clear the stale branch/worktree (only after confirming with `git merge-base --is-ancestor` that it's actually merged) and run `workflows/implement.md` fresh against updated `main`, opening a new PR.
+- **`parallel.worktree_dir`** field in `.claude/daily-working.yml` (default `../.worktrees`).
+
 ## [2.0.1] — 2026-09-10
 
 ### Added

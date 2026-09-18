@@ -2,7 +2,7 @@
 
 **Give it a ticket. Get back a verified, PR'd change — with the tracker updated to prove it.**
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Claude%20Code-5A67D8)
 ![Trackers](https://img.shields.io/badge/trackers-Redmine%20%7C%20GitHub%20Issues-orange)
 ![License](https://img.shields.io/github/license/tms-tungnguyen3/daily_working)
@@ -90,7 +90,7 @@ skills/daily-working/
 ├── SKILL.md              # purpose, routing, structure
 ├── workflows/             # entry points: implement / review / resume
 ├── phases/                # setup, fetch-task, assess, implement, test, verify, close — tracker-agnostic
-├── policies/              # safety, git, database, browser, tracker-adapter (the fetch/write contract)
+├── policies/              # safety, git, database, browser, tracker-adapter (the fetch/write contract), parallel (multi-task isolation)
 ├── adapters/              # one file per tracker: redmine.md (browser), github.md (gh CLI)
 └── templates/             # pr, tracker-write, summary
 ```
