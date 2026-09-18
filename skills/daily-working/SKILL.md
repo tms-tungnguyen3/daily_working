@@ -1,7 +1,7 @@
 ---
 name: daily-working
 description: "End-to-end pipeline: pull a task from the project's task tracker by ID (Redmine or GitHub Issues today, more addable via a new adapter), sanity-check and impact-assess it against the codebase before touching anything, implement it with the Claude CLI, verify the result in a real browser via the Claude Chrome extension (claude-in-chrome), and keep the tracker ticket in sync throughout (in-progress marker, ambiguity/impact questions, close-out comment)."
-version: 2.0.1
+version: 2.1.0
 created: 2026-08-21
 platforms: [claude-code]
 category: workflow
@@ -61,7 +61,8 @@ skills/daily-working/
 │   ├── git.md              — branch/commit conventions
 │   ├── database.md         — shared dev-DB safety rule
 │   ├── browser.md          — claude-in-chrome tool-loading conventions
-│   └── tracker-adapter.md  — the fetch/write_comment/set_status contract every adapter implements
+│   ├── tracker-adapter.md  — the fetch/write_comment/set_status contract every adapter implements
+│   └── parallel.md         — running multiple tasks at once: git worktree + session isolation
 ├── adapters/              — one file per supported task tracker; the only tracker-specific code
 │   ├── redmine.md           — via the claude-in-chrome browser session, no API key
 │   └── github.md            — via the gh CLI (GitHub Issues, using labels for status)
@@ -75,5 +76,6 @@ skills/daily-working/
 
 - **Don't skip the browser step** — passing specs are necessary but not sufficient; this skill exists specifically to close that gap.
 - **Ask, don't guess** — missing tracker credentials, ambiguous ticket-ID mapping, or unclear requirement text are all reasons to stop and ask (see [policies/safety](policies/safety.md)).
+- **Multiple tasks in flight? Isolate, don't interleave** — one working directory and one session only ever advance one task safely at a time; running several at once means a git worktree and a Claude Code session per task, not sharing either (see [policies/parallel](policies/parallel.md)).
 - **A clear ticket isn't automatically a good idea to execute unattended** — [phases/assess](phases/assess.md) exists because "the requirement is unambiguous" and "this is safe/sensible to just go implement" are different questions; judge blast radius and fit against the actual codebase before writing code, not just clarity of the text.
 - **Coordinator, not a new convention set** — implementation still follows this project's existing conventions and test suite; this skill only adds the fetch, assess, and verify bookends, and [phases/setup](phases/setup.md)'s config file is what lets it do that without per-run guessing. The same principle applies to the task tracker itself: [phases/](phases/) never hardcodes Redmine or GitHub, only the [policies/tracker-adapter](policies/tracker-adapter.md) contract — the tracker-specific work lives entirely in `adapters/`.

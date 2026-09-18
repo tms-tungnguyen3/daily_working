@@ -8,6 +8,8 @@ Never commit directly to the repo's default branch (`main`/`master`/whatever `gi
 
 If already on a non-default branch when [phases/implement](../phases/implement.md) starts (e.g. the user already switched), it's fine to keep using it — just confirm it isn't the default branch before committing.
 
+Starting a second task while an earlier one is still in flight (uncommitted, in another branch)? Don't branch in the same working directory — see [policies/parallel](./parallel.md) for isolating it in its own git worktree instead.
+
 ## Branch naming
 
 Name the branch from `git.branch_format` in `.claude/daily-working.yml` (default `{ticket_key}-{slug}`, e.g. `4626-fix-login-redirect`), where `{slug}` is a short kebab-case slug derived from the ticket `subject`. Create and check it out before touching any files:

@@ -9,7 +9,7 @@ Used unconditionally by [phases/verify](../phases/verify.md) — driving the rea
 - Fetching a ticket page or writing to it (Redmine only — [adapters/redmine](../adapters/redmine.md)): `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__get_page_text,mcp__claude-in-chrome__tabs_create_mcp`
 - Verifying a change ([phases/verify](../phases/verify.md), every adapter): `select:mcp__claude-in-chrome__tabs_context_mcp,mcp__claude-in-chrome__navigate,mcp__claude-in-chrome__computer,mcp__claude-in-chrome__read_page,mcp__claude-in-chrome__tabs_create_mcp,mcp__claude-in-chrome__tabs_close_mcp` (add `read_console_messages` / `read_network_requests` for debugging)
 
-Always call `tabs_context_mcp` first — if a relevant tab is already open (the ticket, or the app under test), reuse it instead of opening a new one.
+Always call `tabs_context_mcp` first — if a relevant tab is already open (the ticket, or the app under test) **and it belongs to this same task's own session**, reuse it instead of opening a new one. Running multiple tasks in parallel (see [policies/parallel](./parallel.md))? Don't reuse a tab that belongs to a different task's in-progress session — open a new one instead of guessing whose tab it is.
 
 ## One session covers Redmine end to end
 

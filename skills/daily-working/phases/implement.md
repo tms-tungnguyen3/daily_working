@@ -10,6 +10,8 @@ See [policies/git](../policies/git.md) for the full rule and naming format:
 git checkout -b <branch-name>
 ```
 
+If another task from this skill is already in flight and uncommitted, don't check out a second branch in this same directory — see [policies/parallel](../policies/parallel.md) and give this task its own git worktree instead.
+
 ## Mark the ticket "In Progress" (once, before writing code)
 
 Right now the task tracker only hears from this skill once — at [phases/close](./close.md), after everything is already done. For the whole span of this phase and [phases/verify](./verify.md), anyone looking at the ticket has no way to tell it's actively being worked. Fix that symmetrically with the [phases/close](./close.md) close-out: as soon as [phases/fetch-task](./fetch-task.md) ambiguity is resolved, call the active adapter's `set_status(id, "in_progress")` per [templates/tracker-write](../templates/tracker-write.md) — see the adapter file (e.g. [adapters/redmine](../adapters/redmine.md), [adapters/github](../adapters/github.md)) for what that abstract key actually does on this tracker (a status transition, a label, etc.).

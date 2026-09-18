@@ -70,6 +70,9 @@ pr:
 
 dev_server:
   default_url:
+
+parallel:
+  worktree_dir: "../.worktrees"   # where git worktrees for concurrent tasks are created, relative to this repo's root — see policies/parallel.md
 ```
 
 This file holds conventions, not secrets — safe to commit so the whole team gets the same setup answers. Neither shipped adapter needs a credential stored here: [adapters/redmine](../adapters/redmine.md) authenticates via the already-logged-in `claude-in-chrome` browser session, [adapters/github](../adapters/github.md) via the `gh` CLI's own auth. A future adapter that genuinely needs an API key should keep it as an env var, the same way both of these avoid storing one.
